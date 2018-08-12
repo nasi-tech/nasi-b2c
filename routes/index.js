@@ -99,7 +99,7 @@ function createNode() {
             });
           }
         } else {
-          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 建立Docker主机成功:" + body.node.sandbox_ip_address);
+          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 建立Docker主机成功");
           resolve(body);
         }
       });
@@ -120,7 +120,6 @@ function updateInfo() {
           reject(-99);
         } else {
           var data = JSON.parse(body).nodes[0];
-          console.log(JSON.parse(body));
           if (data) {
             ip = data.sandbox_ip_address;
             password = data.sandbox_password;
@@ -151,7 +150,7 @@ router.get('/info', function (req, res) {
       password = data.sandbox_password;
     }
     await info();
-    await createShadowsocks(ip, password);
+    createShadowsocks(ip, password);
     await updateDNS(ip);
     await restartBroof();
     res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
@@ -165,7 +164,7 @@ router.get('/cmd', async function (req, res) {
     ip = info.split("#")[0];
     password = info.split("#")[1];
   }
-  var response = await createShadowsocks(ip, password);
+  var response = createShadowsocks(ip, password);
   res.send(response);
 });
 
@@ -187,31 +186,31 @@ async function info() {
  * @param {*} password password
  */
 function createShadowsocks(ip, password) {
-  return new Promise(function (resolve, reject) {
-    conn.on('ready', function () {
-      var tmp = "";
-      conn.exec('docker run -d --name ss-with-net-speeder -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5', function (err, stream) {
-        if (err) {
-          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 容器早已建立");
-        } else {
-          stream.on('close', function (code, signal) {
-            conn.end();
-            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 命令执行完成");
-            resolve("shadowsocks 服务已建立");
-          }).on('data', function (data) {
-            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 执行命令ing");
-            tmp += data;
-          }).stderr.on('data', function (data) {
-          });
-        }
-      });
-    }).connect({
-      host: ip,
-      port: 22,
-      username: 'ubuntu',
-      password: password,
-      readyTimeout: 120000
+  conn.on('ready', function () {
+    var tmp = "";
+    conn.exec('docker run -d --name ss-with-net-speeder -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5', function (err, stream) {
+      if (err) {
+        console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 容器早已建立");
+      } else {
+        stream.on('close', function (code, signal) {
+          conn.end();
+          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 命令执行完成");
+          console.log(tmp);
+          return tmp;
+        }).on('data', function (data) {
+          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 执行命令ing");
+          tmp += data;
+        }).stderr.on('data', function (data) {
+          console.log("[Error]" + data);
+        });
+      }
     });
+  }).connect({
+    host: ip,
+    port: 22,
+    username: 'ubuntu',
+    password: password,
+    readyTimeout: 120000
   });
 }
 
