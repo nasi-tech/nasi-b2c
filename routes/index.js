@@ -3,13 +3,19 @@ var router = express.Router();
 var request = require('request');
 var Client = require('ssh2').Client;
 var conn = new Client();
+var conf = require('../conf/config.js');
 
-///////////////////////
-var token = "";
-var cf_key = "";
+//==========Configuration====
+var token = conf.token;
+var cf_key = conf.cf_key;
+var cf_email = conf.cf_email;
+var cf_dns = conf.cf_dns;
+var broof_ssh_host = conf.broof_ssh_host;
+var broof_ssh_username = conf.broof_ssh_username;
+var broof_ssh_password = conf.broof_ssh_password;
+//==========================
 var ip = "";
 var password = "";
-///////////////////////
 
 /* GET home page. */
 router.get('/', function (req, res) {
@@ -234,10 +240,10 @@ function restartBroof() {
         }
       });
     }).connect({
-      host: "cdn.qfdk.me",
+      host: broof_ssh_host,
       port: 22,
-      username: 'root',
-      password: '',
+      username: broof_ssh_username,
+      password: broof_ssh_password,
       readyTimeout: 120000
     });
   });
@@ -251,7 +257,7 @@ function updateDNS(ip) {
   return new Promise(function (resolve, reject) {
     var jsonData = {
       "type": "A",
-      "name": "b2c.qfdk.me",
+      "name": cf_dns,
       "content": ip,
       "ttl": 1,
       "proxied": false
@@ -260,7 +266,7 @@ function updateDNS(ip) {
       method: 'PUT',
       url: "https://api.cloudflare.com/client/v4/zones/96e4978ce217656f4f344935cbce6da6/dns_records/5f811e4c1d2bc0c5562f8267dffd3950",
       headers: {
-        "X-Auth-Email": "qfdk2010@gmail.com",
+        "X-Auth-Email": cf_email,
         "X-Auth-Key": cf_key,
         "Content-Type": "application/json"
       },

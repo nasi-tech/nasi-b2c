@@ -111,5 +111,6 @@ typings/
 !.vscode/launch.json
 !.vscode/extensions.json
 
+conf/config.js
 
 # End of https://www.gitignore.io/api/node,macos,visualstudiocode

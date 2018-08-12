@@ -1,0 +1,10 @@
+var conf = {
+    "token": "",
+    "cf_key": "",
+    "cf_email": "",
+    "cf_dns": "",
+    "broof_ssh_host": "",
+    "broof_ssh_username": '',
+    "broof_ssh_password": '',
+}
+module.exports = conf;
