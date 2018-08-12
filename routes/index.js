@@ -141,23 +141,20 @@ router.get('/info', function (req, res) {
     }
   }, async function (error, response, body) {
     var data = JSON.parse(body).nodes[0];
+    console.log("信息：->" + JSON.parse(body).nodes);
     if (JSON.parse(body).nodes.length == 0) {
+      console.log("服务器需要重新建立")
       await createNode();
       await sleep(90000);
-      await info();
-      await createShadowsocks(ip, password);
     } else {
       ip = data.sandbox_ip_address;
       password = data.sandbox_password;
-      await createShadowsocks(ip, password);
     }
-    var dns = await updateDNS(ip);
-    console.log(dns);
-    var broof = await restartBroof();
-    console.log(broof);
-
+    await info();
+    await createShadowsocks(ip, password);
+    await updateDNS(ip);
+    await restartBroof();
     res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
-
   });
 });
 
@@ -229,11 +226,9 @@ function restartBroof() {
         } else {
           stream.on('close', function (code, signal) {
             conn.end();
-            console.log(tmp);
             console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] Broof重启成功");
             resolve("[Info] Broof -> OK");
           }).on('data', function (data) {
-            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] Broof重启ing");
             tmp += data;
           }).stderr.on('data', function (data) {
           });
