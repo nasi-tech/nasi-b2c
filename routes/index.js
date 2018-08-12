@@ -144,13 +144,12 @@ router.get('/info', function (req, res) {
     if (JSON.parse(body).nodes.length == 0 || body.errno) {
       console.log("服务器需要重新建立")
       await createNode();
-      await sleep(90000);
     } else {
       ip = data.sandbox_ip_address;
       password = data.sandbox_password;
+      await createShadowsocks(ip, password);
     }
     await info();
-    createShadowsocks(ip, password);
     await updateDNS(ip);
     await restartBroof();
     res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
@@ -164,7 +163,7 @@ router.get('/cmd', async function (req, res) {
     ip = info.split("#")[0];
     password = info.split("#")[1];
   }
-  var response = createShadowsocks(ip, password);
+  var response = await createShadowsocks(ip, password);
   res.send(response);
 });
 
@@ -186,31 +185,33 @@ async function info() {
  * @param {*} password password
  */
 function createShadowsocks(ip, password) {
-  conn.on('ready', function () {
-    var tmp = "";
-    conn.exec('docker run -d --name ss-with-net-speeder -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5', function (err, stream) {
-      if (err) {
-        console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 容器早已建立");
-      } else {
-        stream.on('close', function (code, signal) {
-          conn.end();
-          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 命令执行完成");
-          console.log(tmp);
-          return tmp;
-        }).on('data', function (data) {
-          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 执行命令ing");
-          tmp += data;
-        }).stderr.on('data', function (data) {
-          console.log("[Error]" + data);
-        });
-      }
+  return new Promise(function (resolve, reject) {
+    conn.on('ready', function () {
+      var tmp = "";
+      conn.exec('docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5', function (err, stream) {
+        if (err) {
+          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 容器早已建立");
+        } else {
+          stream.on('close', function (code, signal) {
+            conn.end();
+            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 命令执行完成");
+            resolve("ssh 连接关闭");
+          });
+          stream.on('data', function (data) {
+            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 执行命令ing");
+            tmp += data;
+          }).stderr.on('data', function (data) {
+            console.log("[Error] " + data);
+          });
+        }
+      });
+    }).connect({
+      host: ip,
+      port: 22,
+      username: 'ubuntu',
+      password: password,
+      readyTimeout: 20000
     });
-  }).connect({
-    host: ip,
-    port: 22,
-    username: 'ubuntu',
-    password: password,
-    readyTimeout: 120000
   });
 }
 
