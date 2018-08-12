@@ -5,10 +5,10 @@ var Client = require('ssh2').Client;
 var conn = new Client();
 
 ///////////////////////
-var token = "..";
+var token = "";
+var cf_key = "";
 var ip = "";
 var password = "";
-var cf_key = "";
 ///////////////////////
 
 /* GET home page. */
@@ -216,7 +216,7 @@ function restartBroof() {
   return new Promise(function (resolve, reject) {
     conn.on('ready', function () {
       var tmp = "";
-      conn.exec('/etc/init.d/brook-pf restart', function (err, stream) {
+      conn.exec('service brook-pf restart', function (err, stream) {
         if (err) {
           console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 命令失败");
           resolve("[Error] 命令失败");
