@@ -141,8 +141,8 @@ router.get('/info', function (req, res) {
     }
   }, async function (error, response, body) {
     var data = JSON.parse(body).nodes[0];
-    console.log("信息：->" + JSON.parse(body).nodes);
-    if (JSON.parse(body).nodes.length == 0) {
+    console.log("信息-> debug " + body);
+    if (JSON.parse(body).nodes.length == 0 || body.errno) {
       console.log("服务器需要重新建立")
       await createNode();
       await sleep(90000);
