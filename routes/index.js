@@ -138,14 +138,15 @@ router.get('/info', function (req, res) {
       "Authorization": token
     }
   }, async function (error, response, body) {
-    var data = JSON.parse(body).nodes[0];
-    console.log("信息-> debug " + data);
-    if (typeof data === "undefined" || data.nodes.length == 0 || data.errno || data.sandbox_ip_address == null) {
+    var data = JSON.parse(body);
+    console.log(body);
+    console.log(data);
+    if (typeof data === "undefined" || data.errno || !data.nodes || data.sandbox_ip_address == null) {
       console.log("服务器需要重新建立")
       await createNode();
     } else {
-      ip = data.sandbox_ip_address;
-      password = data.sandbox_password;
+      ip = data.nodes[0].sandbox_ip_address;
+      password = data.nodes[0].sandbox_password;
       await createShadowsocks(ip, password);
     }
     await info();
