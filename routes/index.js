@@ -6,7 +6,6 @@ var conf = require('../conf/config.js');
 var log4js = require('log4js');
 var logger = log4js.getLogger();
 logger.level = 'debug';
-
 //==========Configuration====
 var token = conf.token;
 var cf_key = conf.cf_key;
@@ -185,10 +184,11 @@ function createShadowsocks(ip, password) {
     var conn = new Client();
     conn.on('ready', function () {
       var tmp = "";
-      conn.exec("docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5", function (err, stream) {
+      conn.exec("docker run --name shadowsocks -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5", function (err, stream) {
         logger.info("[SSH] 连接就绪");
         if (err) {
-          logger.info("[SSH] 容器早已建立");
+          logger.warn("[SSH] 容器早已建立");
+          resolve(-99);
         } else {
           stream.on('close', function (code, signal) {
             logger.info("[SSH] 命令执行完成");
@@ -198,7 +198,7 @@ function createShadowsocks(ip, password) {
             logger.info("[SSH] 执行命令ing");
             tmp += data;
           }).stderr.on('data', function (data) {
-            logger.debug(data);
+            logger.debug(Buffer.from(data, 'utf8'));
           });
         }
       });
@@ -229,7 +229,7 @@ function restartBroof() {
           }).on('data', function (data) {
             tmp += data;
           }).stderr.on('data', function (data) {
-            logger.debug('[Broof] ' + data);
+            logger.debug(Buffer.from(data, 'utf8'));
           });
         }
       });
@@ -267,7 +267,7 @@ function updateDNS(ip) {
       json: jsonData
     },
       function (error, response, body) {
-        logger.info("[DNS] status: [" + (body.success ? "success" : "false") + "]\n" + "[Info] ip: " + ip);
+        logger.info("[DNS status]: " + (body.success ? "success" : "false") + "with ip: " + ip);
         resolve("[Info] DNS -> OK");
       });
   });
