@@ -188,21 +188,21 @@ function createShadowsocks(ip, password) {
   return new Promise(function (resolve, reject) {
     conn.on('ready', function () {
       var tmp = "";
-      conn.exec('docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5', function (err, stream) {
+      conn.shell(function (err, stream) {
         if (err) {
           console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 容器早已建立");
         } else {
           stream.on('close', function (code, signal) {
-            conn.end();
             console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 命令执行完成");
+            conn.end();
             resolve("ssh 连接关闭");
-          });
-          stream.on('data', function (data) {
+          }).on('data', function (data) {
             console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 执行命令ing");
             tmp += data;
           }).stderr.on('data', function (data) {
-            console.log("[Error] " + data);
+            console.log("[STDERR] " + data);
           });
+          stream.end('docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5\n');
         }
       });
     }).connect({
