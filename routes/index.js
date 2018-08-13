@@ -98,11 +98,11 @@ function createNode() {
                 "Content-Type": "application/json"
               }
             }, function (error, response, body) {
-              logger.info("再次建立Docker主机");
+              logger.warn("[Docker]重试创建主机");
             });
           }
         } else {
-          logger.info("建立Docker主机成功");
+          logger.info("[Docker]主机创建成功");
           resolve(body);
         }
       });
@@ -121,12 +121,12 @@ router.get('/info', function (req, res) {
     var data = JSON.parse(body);
     if (data) {
       if (!data.nodes || data.nodes.length == 0) {
-        logger.warn("Docker主机不存在，需要重新建立");
+        logger.warn("[Docker]主机不存在，需要重新建立");
         await createNode();
       } else {
         ip = data.nodes[0].sandbox_ip_address;
         password = data.nodes[0].sandbox_password;
-        logger.info("准备建立shadowsocks");
+        logger.info("[Docker]准备建立shadowsocks");
         await createShadowsocks(ip, password);
         await updateInfo();
         await updateDNS(ip);
@@ -138,17 +138,6 @@ router.get('/info', function (req, res) {
     }
   });
 });
-
-// async function info() {
-//   var flag = false;
-//   while (!flag) {
-//     var info = await updateInfo();
-//     console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 循环取得信息");
-//     if (info != -99) {
-//       flag = true;
-//     }
-//   }
-// }
 
 function updateInfo() {
   return new Promise(function (resolve, reject) {
@@ -187,18 +176,19 @@ function createShadowsocks(ip, password) {
       conn.exec("docker run --name shadowsocks -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5", function (err, stream) {
         logger.info("[SSH] 连接就绪");
         if (err) {
-          logger.warn("[SSH] 容器早已建立");
+          logger.error("[SSH] 出现问题");
           resolve(-99);
         } else {
           stream.on('close', function (code, signal) {
-            logger.info("[SSH] 命令执行完成");
+            logger.debug(tmp);
+            logger.info("[SSH] 命令完成");
             conn.end();
-            resolve("[SSH] 连接关闭");
+            resolve("[SSH] 命令完成");
           }).on('data', function (data) {
-            logger.info("[SSH] 执行命令ing");
+            logger.info("[SSH] 执行命令ing...");
             tmp += data;
           }).stderr.on('data', function (data) {
-            logger.debug(Buffer.from(data, 'utf8'));
+            tmp += data;
           });
         }
       });
@@ -229,7 +219,7 @@ function restartBroof() {
           }).on('data', function (data) {
             tmp += data;
           }).stderr.on('data', function (data) {
-            logger.debug(Buffer.from(data, 'utf8'));
+            tmp += data;
           });
         }
       });
@@ -267,7 +257,7 @@ function updateDNS(ip) {
       json: jsonData
     },
       function (error, response, body) {
-        logger.info("[DNS status]: " + (body.success ? "success" : "false") + "with ip: " + ip);
+        logger.info("[DNS status]: " + (body.success ? "success" : "false") + "\n[New ip]: " + ip);
         resolve("[Info] DNS -> OK");
       });
   });
