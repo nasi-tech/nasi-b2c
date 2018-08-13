@@ -139,20 +139,23 @@ router.get('/info', function (req, res) {
     }
   }, async function (error, response, body) {
     var data = JSON.parse(body);
-    console.log(body);
-    console.log(data);
-    if (typeof data === "undefined" || data.errno || !data.nodes || data.sandbox_ip_address == null) {
-      console.log("服务器需要重新建立")
-      await createNode();
+    if (data) {
+      console.log(data);
+      if (!data.nodes || data.nodes[0].sandbox_ip_address == null) {
+        console.log("服务器需要重新建立")
+        await createNode();
+      } else {
+        ip = data.nodes[0].sandbox_ip_address;
+        password = data.nodes[0].sandbox_password;
+        await createShadowsocks(ip, password);
+      }
+      await info();
+      await updateDNS(ip);
+      await restartBroof();
+      res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
     } else {
-      ip = data.nodes[0].sandbox_ip_address;
-      password = data.nodes[0].sandbox_password;
-      await createShadowsocks(ip, password);
+      res.send("[Info] 服务器需要重新建立");
     }
-    await info();
-    await updateDNS(ip);
-    await restartBroof();
-    res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
   });
 });
 
