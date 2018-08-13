@@ -2,7 +2,6 @@ var express = require('express');
 var router = express.Router();
 var request = require('request');
 var Client = require('ssh2').Client;
-var conn = new Client();
 var conf = require('../conf/config.js');
 
 //==========Configuration====
@@ -186,9 +185,11 @@ async function info() {
  */
 function createShadowsocks(ip, password) {
   return new Promise(function (resolve, reject) {
+    var conn = new Client();
     conn.on('ready', function () {
       var tmp = "";
       conn.shell(function (err, stream) {
+        console.log("[ssh] 连接就绪")
         if (err) {
           console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 容器早已建立");
         } else {
@@ -202,7 +203,7 @@ function createShadowsocks(ip, password) {
           }).stderr.on('data', function (data) {
             console.log("[STDERR] " + data);
           });
-          stream.end('docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5;timeout 2s pwd\n');
+          stream.end('docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5 && exit');
         }
       });
     }).connect({
@@ -217,6 +218,7 @@ function createShadowsocks(ip, password) {
 
 function restartBroof() {
   return new Promise(function (resolve, reject) {
+    var conn = new Client();
     conn.on('ready', function () {
       var tmp = "";
       conn.exec('service brook-pf restart', function (err, stream) {
