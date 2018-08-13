@@ -3,6 +3,9 @@ var router = express.Router();
 var request = require('request');
 var Client = require('ssh2').Client;
 var conf = require('../conf/config.js');
+var log4js = require('log4js');
+var logger = log4js.getLogger();
+logger.level = 'debug';
 
 //==========Configuration====
 var token = conf.token;
@@ -38,9 +41,10 @@ function getClusterId() {
     },
       function (error, response, body) {
         if (error) {
-          console.log(error);
+          logger.error(error);
         } else {
           node_cluster_id = JSON.parse(body).clusters[0].node_cluster_id;
+          logger.info("取得node_cluster_id");
           resolve(node_cluster_id);
         }
       });
@@ -56,9 +60,10 @@ function getStreamId() {
     },
       function (error, response, body) {
         if (error) {
-          console.log(error);
+          logger.error(error);
         } else {
           stream_room = JSON.parse(body).stream_room;
+          logger.info("取得stream_Id");
           resolve(stream_room);
         }
       });
@@ -94,16 +99,57 @@ function createNode() {
                 "Content-Type": "application/json"
               }
             }, function (error, response, body) {
-              console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 再次建立Docker主机");
+              logger.info("再次建立Docker主机");
             });
           }
         } else {
-          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 建立Docker主机成功");
+          logger.info("建立Docker主机成功");
           resolve(body);
         }
       });
   });
 }
+
+//查询信息 并得到密码
+router.get('/info', function (req, res) {
+  request({
+    method: 'GET',
+    url: "https://api.daocloud.io/v1/single_runtime/nodes",
+    headers: {
+      "Authorization": token
+    }
+  }, async function (error, response, body) {
+    var data = JSON.parse(body);
+    if (data) {
+      if (!data.nodes || data.nodes.length == 0) {
+        logger.warn("Docker主机不存在，需要重新建立");
+        await createNode();
+      } else {
+        ip = data.nodes[0].sandbox_ip_address;
+        password = data.nodes[0].sandbox_password;
+        logger.info("准备建立shadowsocks");
+        await createShadowsocks(ip, password);
+        await updateInfo();
+        await updateDNS(ip);
+        await restartBroof();
+      }
+      res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
+    } else {
+      res.send("[Info] 服务器需要重新建立");
+    }
+  });
+});
+
+// async function info() {
+//   var flag = false;
+//   while (!flag) {
+//     var info = await updateInfo();
+//     console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 循环取得信息");
+//     if (info != -99) {
+//       flag = true;
+//     }
+//   }
+// }
 
 function updateInfo() {
   return new Promise(function (resolve, reject) {
@@ -128,59 +174,6 @@ function updateInfo() {
       });
   });
 }
-
-//查询信息 并得到密码
-router.get('/info', function (req, res) {
-  request({
-    method: 'GET',
-    url: "https://api.daocloud.io/v1/single_runtime/nodes",
-    headers: {
-      "Authorization": token
-    }
-  }, async function (error, response, body) {
-    var data = JSON.parse(body);
-    if (data) {
-      console.log(data);
-      if (!data.nodes || data.nodes.length == 0) {
-        console.log("服务器需要重新建立");
-        await createNode();
-      } else {
-        ip = data.nodes[0].sandbox_ip_address;
-        password = data.nodes[0].sandbox_password;
-        await createShadowsocks(ip, password);
-        await info();
-        await updateDNS(ip);
-        await restartBroof();
-      }
-      res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
-    } else {
-      res.send("[Info] 服务器需要重新建立");
-    }
-  });
-});
-
-//执行命令
-router.get('/cmd', async function (req, res) {
-  if (ip == "") {
-    var info = await updateInfo();
-    ip = info.split("#")[0];
-    password = info.split("#")[1];
-  }
-  var response = await createShadowsocks(ip, password);
-  res.send(response);
-});
-
-async function info() {
-  var flag = false;
-  while (!flag) {
-    var info = await updateInfo();
-    console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 循环取得信息");
-    if (info != -99) {
-      flag = true;
-    }
-  }
-}
-
 /**
  * 
  * create shadowsocket
@@ -193,20 +186,19 @@ function createShadowsocks(ip, password) {
     conn.on('ready', function () {
       var tmp = "";
       conn.exec("docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5", function (err, stream) {
-        console.log("[ssh] 连接就绪");
+        logger.info("[SSH] 连接就绪");
         if (err) {
-          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 容器早已建立");
+          logger.info("[SSH] 容器早已建立");
         } else {
           stream.on('close', function (code, signal) {
-            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 命令执行完成");
+            logger.info("[SSH] 命令执行完成");
             conn.end();
-            resolve("[ssh] 连接关闭");
+            resolve("[SSH] 连接关闭");
           }).on('data', function (data) {
-            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] 执行命令ing");
-            console.log('STDOUT: ' + data);
+            logger.info("[SSH] 执行命令ing");
             tmp += data;
           }).stderr.on('data', function (data) {
-            //console.log("[STDERR] " + data);
+            logger.debug(data);
           });
         }
       });
@@ -227,16 +219,17 @@ function restartBroof() {
       var tmp = "";
       conn.exec('service brook-pf restart', function (err, stream) {
         if (err) {
-          console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Error] 命令失败");
+          logger.error("[Broof] 命令失败");
           resolve("[Error] 命令失败");
         } else {
           stream.on('close', function (code, signal) {
             conn.end();
-            console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] Broof重启成功");
-            resolve("[Info] Broof -> OK");
+            logger.info("[Broof] 重启成功");
+            resolve("[Broof] -> OK");
           }).on('data', function (data) {
             tmp += data;
           }).stderr.on('data', function (data) {
+            logger.debug('[Broof] ' + data);
           });
         }
       });
@@ -274,7 +267,7 @@ function updateDNS(ip) {
       json: jsonData
     },
       function (error, response, body) {
-        console.log(new Date().Format("yyyy-MM-dd hh:mm:ss") + " [Info] DNS status: [" + (body.success ? "success" : "false") + "]\n" + "[Info] ip: " + ip);
+        logger.info("[DNS] status: [" + (body.success ? "success" : "false") + "]\n" + "[Info] ip: " + ip);
         resolve("[Info] DNS -> OK");
       });
   });
