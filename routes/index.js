@@ -140,7 +140,7 @@ router.get('/info', function (req, res) {
   }, async function (error, response, body) {
     var data = JSON.parse(body).nodes[0];
     console.log("信息-> debug " + body);
-    if (JSON.parse(body).nodes.length == 0 || body.errno) {
+    if (JSON.parse(body).nodes.length == 0 || body.errno || body.nodes[0].sandbox_ip_address == null) {
       console.log("服务器需要重新建立")
       await createNode();
     } else {
