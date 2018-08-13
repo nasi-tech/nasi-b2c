@@ -202,7 +202,7 @@ function createShadowsocks(ip, password) {
           }).stderr.on('data', function (data) {
             console.log("[STDERR] " + data);
           });
-          stream.end('docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5\n');
+          stream.end('docker run -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5;timeout 2s pwd\n');
         }
       });
     }).connect({
