@@ -123,19 +123,19 @@ router.get('/info', function (req, res) {
       if (!data.nodes || data.nodes.length == 0) {
         logger.warn("[Docker] 主机不存在，需要重新建立");
         await createNode();
-      }
-      //ip = data.nodes[0].sandbox_ip_address;
-      //password = data.nodes[0].sandbox_password;
-      logger.info("[SSH] 准备建立shadowsocks");
-      var tmp = await updateInfo();
-      if (tmp != -99) {
-        await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
-        await updateDNS(tmp.split("#")[0]);
-        await restartBroof();
+        res.send("[Docker] 服务器已建立,请等待...");
       } else {
-        res.send("[Info] 服务器信息无更新");
+        logger.info("[SSH] 准备建立shadowsocks");
+        var tmp = await updateInfo();
+        if (tmp != -99) {
+          await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
+          await updateDNS(tmp.split("#")[0]);
+          await restartBroof();
+        } else {
+          res.send("[Info] 服务器信息无更新");
+        }
+        res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
       }
-      res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
     } else {
       res.send("[Info] 服务器需要重新建立");
     }
@@ -184,7 +184,7 @@ function createShadowsocks(ip, password) {
       var stdout = "";
       var stderr = "";
       var cmd = 'docker run -dt --name ss -p 8989:8989 mritd/shadowsocks -s "-s 0.0.0.0 -p 8989 -m rc4-md5 -k qfdk --fast-open"';
-      //docker run --name shadowsocks -d -p 8888:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5
+      //docker run --name shadowsocks -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5
       conn.exec(cmd, function (err, stream) {
         logger.info("[SSH] 连接就绪");
         if (err) {
@@ -200,7 +200,7 @@ function createShadowsocks(ip, password) {
             logger.info('[SSH] ' + stdout);
             resolve(stdout);
           }).stderr.on('data', function (data) {
-            stderr = data;
+            stderr += data;
             if (stderr.indexOf('already') != -1) {
               logger.warn("[SSH] shadowsocks 容器已经存在");
               resolve("[SSH] shadowsocks 容器已经存在");
