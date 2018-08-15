@@ -123,7 +123,7 @@ router.get('/info', function (req, res) {
       if (!data.nodes || data.nodes.length == 0) {
         logger.warn("[Docker] 主机不存在，需要重新建立");
         await createNode();
-        res.send("[Docker] 服务器已建立,请等待...");
+        res.send("[Docker] 服务器已建立,开机时间约60s");
       } else {
         logger.info("[SSH] 准备建立shadowsocks");
         var tmp = await updateInfo();
