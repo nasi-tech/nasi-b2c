@@ -121,16 +121,19 @@ router.get('/info', function (req, res) {
     var data = JSON.parse(body);
     if (data) {
       if (!data.nodes || data.nodes.length == 0) {
-        logger.warn("[Docker]主机不存在，需要重新建立");
+        logger.warn("[Docker] 主机不存在，需要重新建立");
         await createNode();
-      } else {
-        ip = data.nodes[0].sandbox_ip_address;
-        password = data.nodes[0].sandbox_password;
-        logger.info("[Docker]准备建立shadowsocks");
-        await createShadowsocks(ip, password);
-        await updateInfo();
-        await updateDNS(ip);
+      }
+      //ip = data.nodes[0].sandbox_ip_address;
+      //password = data.nodes[0].sandbox_password;
+      logger.info("[SSH] 准备建立shadowsocks");
+      var tmp = await updateInfo();
+      if (tmp != -99) {
+        await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
+        await updateDNS(tmp.split("#")[0]);
         await restartBroof();
+      } else {
+        res.send("[Info] 服务器信息无更新");
       }
       res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
     } else {
@@ -154,9 +157,15 @@ function updateInfo() {
         } else {
           var data = JSON.parse(body).nodes[0];
           if (data) {
-            ip = data.sandbox_ip_address;
+            var newIp = data.sandbox_ip_address;
             password = data.sandbox_password;
-            resolve(ip + "#" + password);
+            if (ip == newIp) {
+              reject(-99);
+            } else {
+              ip = newIp;
+              logger.info("[Docker] 主机连接信息更新成功");
+              resolve(newIp + "#" + password);
+            }
           }
         }
       });
@@ -191,12 +200,12 @@ function createShadowsocks(ip, password) {
             logger.info('[SSH] ' + stdout);
             resolve(stdout);
           }).stderr.on('data', function (data) {
-            stderr += data;
+            stderr = data;
             if (stderr.indexOf('already') != -1) {
               logger.warn("[SSH] shadowsocks 容器已经存在");
               resolve("[SSH] shadowsocks 容器已经存在");
             } else {
-              logger.warn(stderr);
+              logger.debug(stderr);
             }
           });
         }
