@@ -127,14 +127,10 @@ router.get('/info', function (req, res) {
       } else {
         logger.info("[SSH] 准备建立shadowsocks");
         var tmp = await updateInfo();
-        if (tmp != -99) {
-          await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
-          await updateDNS(tmp.split("#")[0]);
-          await restartBroof();
-          res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
-        } else {
-          res.send("[Info] 服务器信息无更新");
-        }
+        await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
+        await updateDNS(tmp.split("#")[0]);
+        await restartBroof();
+        res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
       }
     } else {
       res.send("[Info] 服务器需要重新建立");
@@ -157,15 +153,10 @@ function updateInfo() {
         } else {
           var data = JSON.parse(body).nodes[0];
           if (data) {
-            var newIp = data.sandbox_ip_address;
+            ip = data.sandbox_ip_address;
             password = data.sandbox_password;
-            if (ip == newIp) {
-              resolve(-99);
-            } else {
-              ip = newIp;
-              logger.info("[Docker] 主机连接信息更新成功");
-              resolve(newIp + "#" + password);
-            }
+            logger.info("[Docker] 主机连接信息更新成功");
+            resolve(ip + "#" + password);
           }
         }
       });
