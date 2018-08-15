@@ -131,10 +131,10 @@ router.get('/info', function (req, res) {
           await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
           await updateDNS(tmp.split("#")[0]);
           await restartBroof();
+          res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
         } else {
           res.send("[Info] 服务器信息无更新");
         }
-        res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
       }
     } else {
       res.send("[Info] 服务器需要重新建立");
