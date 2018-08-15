@@ -103,7 +103,7 @@ function createNode() {
           }
         } else {
           logger.info("[Docker]主机创建成功");
-          resolve(body);
+          resolve('[Docker]主机创建成功');
         }
       });
   });
@@ -172,23 +172,32 @@ function createShadowsocks(ip, password) {
   return new Promise(function (resolve, reject) {
     var conn = new Client();
     conn.on('ready', function () {
-      var tmp = "";
-      conn.exec("docker run --name shadowsocks -d -p 8989:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5", function (err, stream) {
+      var stdout = "";
+      var stderr = "";
+      var cmd = 'docker run -dt --name ss -p 8989:8989 mritd/shadowsocks -s "-s 0.0.0.0 -p 8989 -m rc4-md5 -k qfdk --fast-open"';
+      //docker run --name shadowsocks -d -p 8888:8989 malaohu/ss-with-net-speeder -s 0.0.0.0 -p 8989 -k qfdk -m rc4-md5
+      conn.exec(cmd, function (err, stream) {
         logger.info("[SSH] 连接就绪");
         if (err) {
           logger.error("[SSH] 出现问题");
           resolve(-99);
         } else {
           stream.on('close', function (code, signal) {
-            logger.debug(tmp);
-            logger.info("[SSH] 命令完成");
+            logger.info("[SSH] 命令完成&关闭SSH连接");
             conn.end();
-            resolve("[SSH] 命令完成");
           }).on('data', function (data) {
             logger.info("[SSH] 执行命令ing...");
-            tmp += data;
+            stdout += data;
+            logger.info('[SSH] ' + stdout);
+            resolve(stdout);
           }).stderr.on('data', function (data) {
-            tmp += data;
+            stderr += data;
+            if (stderr.indexOf('already') != -1) {
+              logger.warn("[SSH] shadowsocks 容器已经存在");
+              resolve("[SSH] shadowsocks 容器已经存在");
+            } else {
+              logger.warn(stderr);
+            }
           });
         }
       });
@@ -210,7 +219,7 @@ function restartBroof() {
       conn.exec('service brook-pf restart', function (err, stream) {
         if (err) {
           logger.error("[Broof] 命令失败");
-          resolve("[Error] 命令失败");
+          resolve("[Broof] 命令失败");
         } else {
           stream.on('close', function (code, signal) {
             conn.end();
@@ -263,24 +272,8 @@ function updateDNS(ip) {
   });
 }
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-Date.prototype.Format = function (fmt) { //author: meizz 
-  var o = {
-    "M+": this.getMonth() + 1, //月份 
-    "d+": this.getDate(), //日 
-    "h+": this.getHours(), //小时 
-    "m+": this.getMinutes(), //分 
-    "s+": this.getSeconds(), //秒 
-    "q+": Math.floor((this.getMonth() + 3) / 3), //季度 
-    "S": this.getMilliseconds() //毫秒 
-  };
-  if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
-  for (var k in o)
-    if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
-  return fmt;
-}
+router.get('/cmd', async function (req, res) {
+  res.send(await createShadowsocks());
+})
 
 module.exports = router;
