@@ -160,7 +160,7 @@ function updateInfo() {
             var newIp = data.sandbox_ip_address;
             password = data.sandbox_password;
             if (ip == newIp) {
-              reject(-99);
+              resolve(-99);
             } else {
               ip = newIp;
               logger.info("[Docker] 主机连接信息更新成功");
