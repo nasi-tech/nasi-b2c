@@ -157,13 +157,38 @@ function updateInfo() {
         } else {
           var data = JSON.parse(body).nodes[0];
           if (data) {
-            ip = data.sandbox_ip_address;
-            password = data.sandbox_password;
-            logger.info("[Docker] 主机信息更新成功");
-            resolve(ip + "#" + password);
+            if (data.sandbox_ip_address) {
+              ip = data.sandbox_ip_address;
+              password = data.sandbox_password;
+              logger.info("[Docker] 主机信息更新成功");
+              resolve(ip + "#" + password);
+            } else {
+              resolve(await deleteCluster(data.node_id));
+            }
           } else {
             resolve(-99);
           }
+        }
+      });
+  });
+}
+
+//https://api.daocloud.io/v1/single_runtime/nodes/fd0d05ea-ba2d-41f4-bc3f-2e161d8feb99 DELETE
+function deleteCluster(id) {
+  return new Promise(function (resolve, reject) {
+    request({
+      method: 'DELETE',
+      url: "https://api.daocloud.io/v1/single_runtime/nodes/" + id,
+      headers: {
+        "Authorization": token
+      }
+    },
+      function (error, response, body) {
+        if (body.errno) {
+          resolve(-99);
+        } else {
+          logger.info("[主机删除] " + body);
+          resolve(body);
         }
       });
   });
