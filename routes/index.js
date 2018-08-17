@@ -118,26 +118,31 @@ router.get('/info', function (req, res) {
       "Authorization": token
     }
   }, async function (error, response, body) {
-    var data = JSON.parse(body);
-    if (data) {
-      if (!data.nodes || data.nodes.length == 0) {
-        logger.warn("[Docker] 主机不存在，需要重新建立");
-        await createNode();
-        res.send("[Docker] 服务器已建立,开机时间约60s");
-      } else {
-        logger.info("[SSH] 准备建立shadowsocks");
-        var tmp = await updateInfo();
-        if (tmp != 99) {
-          await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
-          await updateDNS(tmp.split("#")[0]);
-          await restartBroof();
-          res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
-        } else {
-          res.send('[Info] 无法刷新信息,等待重试');
-        }
-      }
+    if (body == "AUTH TOKEN ERROR") {
+      logger.fatal("[DaoCloud] token 失效");
+      res.send('token 需要刷新');
     } else {
-      res.send("[Info] 服务器需要重新建立");
+      var data = JSON.parse(body);
+      if (data) {
+        if (!data.nodes || data.nodes.length == 0) {
+          logger.warn("[DaoCloud] 主机不存在，需要重新建立");
+          await createNode();
+          res.send("[DaoCloud] 服务器已建立,开机时间约60s");
+        } else {
+          logger.info("[SSH] 准备建立shadowsocks");
+          var tmp = await updateInfo();
+          if (tmp != -99) {
+            await createShadowsocks(tmp.split("#")[0], tmp.split("#")[1]);
+            await updateDNS(tmp.split("#")[0]);
+            await restartBroof();
+            res.send("[Info] ssh ubuntu@" + ip + " ->" + password);
+          } else {
+            res.send('[Info] 无法刷新信息,等待重试');
+          }
+        }
+      } else {
+        res.send("[DaoCloud] 服务器需要重新建立");
+      }
     }
   });
 });
@@ -151,7 +156,7 @@ function updateInfo() {
         "Authorization": token
       }
     },
-      function (error, response, body) {
+      async function (error, response, body) {
         if (body.errno) {
           resolve(-99);
         } else {
@@ -163,7 +168,8 @@ function updateInfo() {
               logger.info("[Docker] 主机信息更新成功");
               resolve(ip + "#" + password);
             } else {
-              resolve(await deleteCluster(data.node_id));
+              var tmp = await deleteCluster(data.node_id);
+              resolve(tmp);
             }
           } else {
             resolve(-99);
