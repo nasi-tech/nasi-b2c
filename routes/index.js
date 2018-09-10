@@ -227,6 +227,9 @@ function createShadowsocks(ip, password) {
             stdout += data;
             logger.info('[SSH] ' + stdout);
             resolve(stdout);
+          }).on('error', function (data) {
+            logger.error("[SSH] error...");
+            resolve("[SSH] error...")
           }).stderr.on('data', function (data) {
             stderr += data;
             if (stderr.indexOf('already') != -1) {
